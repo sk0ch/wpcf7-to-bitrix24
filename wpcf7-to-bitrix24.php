@@ -45,7 +45,11 @@ class wpcf7_to_bitrix24 {
 	function __construct() {
 
 		// Add filter
-		add_filter( 'wpcf7_posted_data', array( __CLASS__, 'wpcf7_sent_to_bitrix' ), 10, 1 );
+		//add_filter( 'wpcf7_posted_data', array( __CLASS__, 'wpcf7_sent_to_bitrix' ), 10, 1 );
+		
+		add_filter( 'wpcf7_mail_sent', array( __CLASS__, 'wpcf7_sent_to_bitrix' ), 10, 1 );
+		
+		
 
 		// Add admin settings page
 		add_action( 'admin_menu', 						array( __CLASS__, 'register_settings_page' ) );
@@ -237,26 +241,31 @@ class wpcf7_to_bitrix24 {
 	 *
 	 * @param Array $data form data
 	 *
-	 * @return Array $data form data
 	 */
-	static function wpcf7_sent_to_bitrix( $data ) {
+	static function wpcf7_sent_to_bitrix( $contact_form ) {
+
+		$title = $contact_form->title;
+		$submission = WPCF7_Submission::get_instance();
+
+		if ( $submission ) {
+			$data = $submission->get_posted_data();
+		} else {
+			return;
+		}
 
 		$options = get_option( self::PAGE );
 
 		// Maybe was disable sending data?
 		if ( isset( $options['disable_send_data'] ) && 1 === $options['disable_send_data'] ) {
-			return $data;
+			return;
 		}
 
 		// Check auth data
 		if ( ! isset( $options['bitrix_url'] ) || empty( $options['bitrix_url'] ) || ! isset( $options['bitrix_login'] ) || empty( $options['bitrix_login'] ) || ! isset( $options['bitrix_password'] ) || empty( $options['bitrix_password'] ) ) {
-			return $data;
+			return;
 		}
 
 		global $page;
-
-		// Get current form
-		$form = get_post( $data['_wpcf7'] );
 
 		// Get page title
 		$page = get_post( $data['_wpcf7_container_post'] );
@@ -279,7 +288,7 @@ class wpcf7_to_bitrix24 {
 			$options['bitrix_url'], 										// Bitrix url
 			$options['bitrix_login'],										// Login
 			$options['bitrix_password'],									// Password
-			$form->post_title . ' ( ' . $page->post_title . ' )',			// Title
+			$title . ' ( ' . $page->post_title . ' )',			// Title
 			isset( $data['your-name'] ) 	? $data['your-name'] 	: ' ',	// your-name
 			isset( $data['tel-882'] ) 		? $data['tel-882'] 		: ' ',	// tel-882
 			isset( $data['your-email'] ) 	? $data['your-email'] 	: ' ',	// your-email
@@ -287,9 +296,7 @@ class wpcf7_to_bitrix24 {
 		);
 
 		// Send data
-		$data = file_get_contents( $url );
-
-		return $data;
+		$_data = file_get_contents( $url );
 	}
 
 }
